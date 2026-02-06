@@ -604,7 +604,21 @@
                 // 2. Generate Image (html2canvas)
                 try {
                     const element = document.getElementById('contractContent');
-                    const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+                    const canvas = await html2canvas(element, { 
+    scale: 2, 
+    backgroundColor: "#ffffff", 
+    useCORS: true,
+    windowWidth: 1200, // บังคับความกว้าง Desktop (1200px ขึ้นไป)
+    onclone: (clonedDoc) => {
+        const clonedEl = clonedDoc.getElementById('contractContent');
+        // บังคับให้ขนาดกระดาษเป็น Legal/A4 เสมอ ไม่ให้หดตามจอมือถือ
+        if(clonedEl) {
+            clonedEl.style.width = '215.9mm'; 
+            clonedEl.style.maxWidth = 'none';
+            clonedEl.style.margin = '0';
+        }
+    }
+});
                     const imageBase64 = canvas.toDataURL('image/jpeg', 0.9);
                     formData.image_base64 = imageBase64;
 
