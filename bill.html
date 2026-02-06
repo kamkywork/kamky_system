@@ -502,6 +502,18 @@
 }).then(r=>r.json()).then(d=>{
                 if(d.status==='success') {
                     document.getElementById('in-contract-no').value = d.c_no;
+					if (d.c_no) {
+    // แยกตัวอักษรหน้าขีด (เช่น "K-66/001" จะได้ "K")
+    let prefix = d.c_no.split('-')[0].trim().toUpperCase();
+    let saleSelect = document.getElementById('in-sale-code');
+    
+    // ถ้าตัวอักษรตรงกับที่มีในตัวเลือก ให้เปลี่ยนค่าทันที
+    if (prefix === 'T' || prefix === 'K' || prefix === 'N') {
+        saleSelect.value = prefix;
+        // โหลดเลขที่ใบเสร็จล่าสุดของทีมนั้นใหม่ด้วย
+        fetchNextBillNo(); 
+    }
+}
                     document.getElementById('in-customer').value = d.b_name; 
                     document.getElementById('in-product-name').value = d.p_name;
                     document.getElementById('in-rem-amount').value = d.amount;
