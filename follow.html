@@ -887,7 +887,11 @@ if (btnForecast) btnForecast.style.display = (currentUser.role === 'admin') ? di
         function createCardHtml(c) {
             if (c.finalAmount === undefined) { c.finalAmount = parseFloat(c.amount || 0) * (c.overdue_count > 1 ? c.overdue_count : 1); }
             if (c.hasPostpone === undefined) { c.hasPostpone = (c.postpone_date && c.postpone_date !== "-" && c.postpone_date !== ""); }
-            const isAdmin = (currentUser.role === 'admin' || currentUser.sale_code === 'Central'); 
+            
+            // --- แยกสิทธิ์การใช้งาน (Admin ตัวจริง vs Central สำหรับกดอนุมัติ) ---
+            const isSuperAdmin = (currentUser.role === 'admin'); 
+            const canApprove = (currentUser.role === 'admin' || currentUser.sale_code === 'Central'); 
+
             let cardClass = isSearchMode ? "card-search-result" : "card-normal"; 
             let statusHtml = `<span class="status-text text-green"><i class="fas fa-check-circle"></i> ปกติ</span>`;
             let hasPaymentNote = c.last_note && c.last_note.includes('แจ้งชำระ');
@@ -895,7 +899,8 @@ if (btnForecast) btnForecast.style.display = (currentUser.role === 'admin') ? di
             
             if (c.status === 'Pending_Approve' || c.status === 'รอตรวจสอบ') { 
                 cardClass = "card-pending-approve"; 
-                if(isAdmin) statusHtml = `<span class="status-text text-orange" onclick="adminApprove('${c.c_no}', ${c.row_index}, '${c.request_date}', '${c.last_note || ''}', 'postpone')">⏳ รอตรวจสอบ (กด)</span>`; 
+                // ใช้ canApprove เพื่อให้ Central กดได้
+                if(canApprove) statusHtml = `<span class="status-text text-orange" onclick="adminApprove('${c.c_no}', ${c.row_index}, '${c.request_date}', '${c.last_note || ''}', 'postpone')">⏳ รอตรวจสอบ (กด)</span>`; 
                 else statusHtml = `<span class="status-text text-orange">⏳ รอตรวจสอบ</span>`; 
             } 
             else if (c.status === 'Pending_Central_Approve') {
@@ -908,7 +913,8 @@ if (btnForecast) btnForecast.style.display = (currentUser.role === 'admin') ? di
             }
             else if (c.status === 'รอปิดยอด') { 
                 cardClass = "card-pending-approve"; 
-                if(isAdmin) statusHtml = `<span class="status-text text-red" style="cursor:pointer;" onclick="adminApprove('${c.c_no}', ${c.row_index}, '-', '${c.last_note || ''}', 'close')">🏁 รอปิดยอด (กดอนุมัติ)</span>`; 
+                // ใช้ canApprove เพื่อให้ Central กดได้
+                if(canApprove) statusHtml = `<span class="status-text text-red" style="cursor:pointer;" onclick="adminApprove('${c.c_no}', ${c.row_index}, '-', '${c.last_note || ''}', 'close')">🏁 รอปิดยอด (กดอนุมัติ)</span>`; 
                 else statusHtml = `<span class="status-text text-red">🏁 รออนุมัติปิดยอด</span>`; 
             }
             else if (c.hasPostpone) { cardClass = "card-postpone"; statusHtml = `<span class="status-text text-purple">⏰ เลื่อน: ${c.postpone_date}</span>`; } 
@@ -936,19 +942,24 @@ if (btnForecast) btnForecast.style.display = (currentUser.role === 'admin') ? di
                         <span>ROI: ${c.roi_percent || 0}%</span>
                     </div>
                 </div>`;
-            let menuButton = isAdmin ? `<button class="btn-kebab" style="margin-left:5px;" onclick="openManageMenu(${c.row_index},'${c.b_name}','${c.c_no}')">⋮</button>` : '';
+            
+            // --- ใช้ isSuperAdmin สำหรับปุ่มเมนูจัดการจุดไข่ปลา (⋮) เท่านั้น ---
+            let menuButton = isSuperAdmin ? `<button class="btn-kebab" style="margin-left:5px;" onclick="openManageMenu(${c.row_index},'${c.b_name}','${c.c_no}')">⋮</button>` : '';
             let actionButtonsHtml = '', gridClass = '';
             const hasExtraInfo = (c.contact_image && c.contact_image !== "" && c.contact_image !== "-");
             const infoBtn = hasExtraInfo ? `<button class="btn-act btn-act-info" onclick="openContactImage('${c.c_no}')"><i class="fas fa-address-card"></i> ข้อมูลเพิ่มเติม</button>` : `<button class="btn-act btn-disabled" disabled><i class="fas fa-address-card"></i> ข้อมูลเพิ่มเติม</button>`;
             const contractBtn = `<button class="btn-act btn-act-contract" onclick="openContractPopup('${c.c_no}')"><i class="fas fa-file-contract"></i> สัญญา</button>`;
+            
             if (isClosed) {
                 gridClass = 'grid-closed-actions';
                 actionButtonsHtml = `${infoBtn}${contractBtn}`;
             } else {
-                if (isAdmin) {
+                // --- ใช้ isSuperAdmin สำหรับปุ่ม จ่าย และ โทร (แบบ Admin) ---
+                if (isSuperAdmin) {
                     gridClass = 'grid-admin-actions';
                     actionButtonsHtml = `<a href="tel:${c.b_mobile}" class="btn-act btn-act-call"><i class="fas fa-phone"></i> โทร</a>${infoBtn}${contractBtn}<button class="btn-act btn-act-pay" onclick="openPay('${c.c_no}')"><i class="fas fa-wallet"></i> จ่าย</button><button class="btn-act btn-act-postpone" style="grid-column: 1 / -1;" onclick="openPostpone(${c.row_index},'${c.b_name}', '${c.postpone_date||''}')"><i class="fas fa-calendar-check"></i> นัดหมาย</button>`;
                 } else {
+                    // --- สำหรับ Central และ User ทั่วไป จะเห็นปุ่มแจ้งชำระเหมือนเซลล์ ---
                     gridClass = 'grid-user-actions';
                     const isPending = (c.status === 'Pending_Approve' || c.status === 'รอตรวจสอบ' || c.status === 'รอปิดยอด' || c.status === 'Pending_Central_Approve');
                     const payBtn = isPending ? `<button class="user-checkbox-btn btn-disabled" disabled><i class="fas fa-clock"></i> รออนุมัติ</button>` : `<button class="user-checkbox-btn" onclick="userReqPay('${c.c_no}')"><i class="far fa-check-square"></i> แจ้งชำระ</button>`;
